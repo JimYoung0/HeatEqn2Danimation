@@ -1,0 +1,65 @@
+import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib.animation import FuncAnimation
+from mpl_toolkits.mplot3d import Axes3D
+
+global iteration_count
+iteration_count = 0  
+
+
+nx, ny = 50, 50
+dx, dy = 1.0 / (nx - 1), 1.0 / (ny - 1)
+x = np.linspace(0, 1, nx)
+y = np.linspace(0, 1, ny)
+X, Y = np.meshgrid(x, y)
+
+alpha = 0.01  
+dt = 0.01  
+sigma = 0.1  
+mu_x, mu_y = 0.5, 0.5  
+
+u = np.exp(-((X - mu_x)**2 + (Y - mu_y)**2) / (2 * sigma**2))
+u /= np.max(u)
+u_old = np.copy(u)
+
+# Construct Matrix
+A = np.eye(nx * ny) * (1 + 2 * alpha * dt * (1/dx**2 + 1/dy**2))
+for j in range(ny):
+    for i in range(nx):
+        if i > 0:
+            A[j * nx + i, j * nx + i - 1] = -alpha * dt / dx**2
+        if i < nx - 1:
+            A[j * nx + i, j * nx + i + 1] = -alpha * dt / dx**2
+        if j > 0:
+            A[j * nx + i, (j - 1) * nx + i] = -alpha * dt / dy**2
+        if j < ny - 1:
+            A[j * nx + i, (j + 1) * nx + i] = -alpha * dt / dy**2
+
+
+def is_equilibrium(u, u_old, tolerance=1e-4):
+    return np.max(np.abs(u - u_old)) < tolerance
+
+def update(frame):
+    global u, u_old, iteration_count
+    iteration_count += 1  
+    u_flat = u.flatten()
+    u_flat = np.linalg.solve(A, u_flat)
+    u_new = u_flat.reshape((ny, nx))
+    if is_equilibrium(u_new, u_old, tolerance=1e-4):
+        print(f"Equilibrium reached after {iteration_count} iterations.")
+        ani.event_source.stop()  
+    u_old = np.copy(u_new)
+    u = u_new
+    ax.clear()
+    surf = ax.plot_surface(X, Y, u, cmap='hot', edgecolor='none')
+    ax.set_zlim(0, 1)
+    return surf,
+
+
+fig = plt.figure()
+ax = fig.add_subplot(111, projection='3d')
+ax.set_zlim(0, 1)
+
+ani = FuncAnimation(fig, update, frames=np.arange(1000), blit=False, interval=50, repeat=False)
+
+plt.show()
