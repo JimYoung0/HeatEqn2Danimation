@@ -1,0 +1,87 @@
+import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib.animation import FuncAnimation
+from mpl_toolkits.mplot3d import Axes3D
+
+# parameters
+Lx, Ly = 1.0, 1.0  
+im, jm = 50, 50   
+dt = 0.005         
+sigma = 0.05       
+mu_x, mu_y = 0.5, 0.5  
+alpha = 0.01       # diffusity
+
+# 
+x = np.linspace(0, Lx, im)
+y = np.linspace(0, Ly, jm)
+dx = x[1] - x[0]
+dy = y[1] - y[0]
+X, Y = np.meshgrid(x, y)
+
+u0 = np.exp(-((X - mu_x)**2 + (Y - mu_y)**2) / (2 * sigma**2))
+u0 /= np.max(u0)
+
+###
+
+
+u0[0, :] = u0[-1, :] = u0[:, 0] = u0[:, -1] = 0
+
+u = np.copy(u0)
+
+def update_temperature(u, alpha, dt, dx, dy, im, jm):
+    u_new = np.copy(u)
+    for i in range(1, im - 1):
+        for j in range(1, jm - 1):
+            u_new[i, j] = u[i, j] + alpha * dt * ((u[i + 1, j] - 2 * u[i, j] + u[i - 1, j]) / dx**2 + 
+                                                  (u[i, j + 1] - 2 * u[i, j] + u[i, j - 1]) / dy**2)
+    u_new[0, :] = u_new[-1, :] = u_new[:, 0] = u_new[:, -1] = 0  
+    return u_new
+
+# check equilibrium
+def is_equilibrium(u, u_old, tolerance=1e-4):
+    return np.max(np.abs(u - u_old)) < tolerance
+
+# initialize
+u_old = np.copy(u)
+steps = 0
+max_steps = 10000
+equilibrium_reached = False
+fig = plt.figure()
+ax = fig.add_subplot(111, projection='3d')
+
+# animate
+X, Y = np.meshgrid(x, y)
+surf = ax.plot_surface(X, Y, u, cmap='hot')
+fig.colorbar(surf)
+ax.set_zlim(0, 1)
+ax.set_title('2D Heat Equation Simulation Over Time in 3D')
+ax.set_xlabel('X axis')
+ax.set_ylabel('Y axis')
+ax.set_zlabel('Temperature')
+
+# updating function
+def animate(step):
+    global u, u_old, steps, equilibrium_reached
+    if not equilibrium_reached:
+        u_old = np.copy(u)
+        u = update_temperature(u, alpha, dt, dx, dy, im, jm)
+        equilibrium_reached = is_equilibrium(u, u_old)
+        steps += 1
+        if equilibrium_reached:
+            print(f"Equilibrium reached at step {steps}")
+            ani.event_source.stop()
+    ax.clear()
+    ax.set_zlim(0, 1)
+    ax.set_title('2D Heat Equation Simulation Over Time in 3D')
+    ax.set_xlabel('X axis')
+    ax.set_ylabel('Y axis')
+    ax.set_zlabel('Temperature')
+    surf = ax.plot_surface(X, Y, u, cmap='hot')
+    return surf,
+
+ani = FuncAnimation(fig, animate, frames=max_steps, interval=50)
+
+
+plt.show()
+
+
